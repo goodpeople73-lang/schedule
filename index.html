@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스케줄 관리</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>스케줄 관리</h1>
+      <p id="todayLabel"></p>
+    </header>
+    <section id="alertSection" class="alert-section"></section>
+
+    <section class="today-section">
+      <button id="addTaskBtn" class="primary-btn">새로운 일 추가하기</button>
+      <h2>오늘의 할 일</h2>
+      <ul id="todayTasks" class="task-list">
+        <li class="empty-message">오늘 등록된 일정이 없습니다.</li>
+      </ul>
+    </section>
+
+    <section class="view-section">
+      <div class="filter-row">
+        <input type="text" id="searchInput" placeholder="제목/상세내용 검색">
+        <select id="statusFilter">
+          <option value="all">전체</option>
+          <option value="todo">미완료</option>
+          <option value="done">완료</option>
+        </select>
+      </div>
+      <div class="view-switch">
+        <button id="calendarViewBtn" class="tab-btn active">달력으로 보기</button>
+        <button id="listViewBtn" class="tab-btn">목록으로 보기</button>
+      </div>
+
+      <div id="calendarView" class="view-panel active">
+        <div class="calendar-header">
+          <button id="prevMonthBtn" class="month-nav">&lt;</button>
+          <h3 id="calendarTitle"></h3>
+          <button id="printMonthBtn" class="print-btn">
+            <img src="printer-icon.svg" alt="" aria-hidden="true">
+            <span>월간 일정 프린트</span>
+          </button>
+          <button id="nextMonthBtn" class="month-nav">&gt;</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+
+      <div id="listView" class="view-panel">
+        <ul id="allTasks" class="task-list">
+          <li class="empty-message">등록된 일정이 없습니다.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <section id="printMonthSection" class="print-month-section">
+    <h1 id="printMonthTitle"></h1>
+    <ul id="printMonthList"></ul>
+  </section>
+
+  <div id="taskModal" class="modal hidden">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-content">
+      <h3 id="modalTitle">새 일정 추가</h3>
+      <form id="taskForm">
+        <input type="hidden" id="taskId">
+
+        <label for="taskDate" class="date-label">날짜</label>
+        <input type="date" id="taskDate" class="date-input" required>
+
+        <label for="taskTitle">제목</label>
+        <input type="text" id="taskTitle" required maxlength="40">
+
+        <label for="taskDetail">상세내용</label>
+        <textarea id="taskDetail" rows="4" maxlength="300"></textarea>
+
+        <label>이모티콘</label>
+        <div id="emojiPicker" class="emoji-picker">
+          <button type="button" class="emoji-btn" data-emoji="😀">😀</button>
+          <button type="button" class="emoji-btn" data-emoji="😊">😊</button>
+          <button type="button" class="emoji-btn" data-emoji="🔥">🔥</button>
+          <button type="button" class="emoji-btn" data-emoji="✅">✅</button>
+          <button type="button" class="emoji-btn" data-emoji="📌">📌</button>
+          <button type="button" class="emoji-btn" data-emoji="📚">📚</button>
+          <button type="button" class="emoji-btn" data-emoji="💼">💼</button>
+          <button type="button" class="emoji-btn" data-emoji="🏃">🏃</button>
+          <button type="button" class="emoji-btn" data-emoji="🎯">🎯</button>
+          <button type="button" class="emoji-btn" data-emoji="⭐">⭐</button>
+        </div>
+
+        <label for="taskPriority">우선순위</label>
+        <select id="taskPriority" required>
+          <option value="high">높음</option>
+          <option value="medium" selected>보통</option>
+          <option value="low">낮음</option>
+        </select>
+
+        <div class="modal-actions">
+          <button type="button" id="completeTaskBtn" class="complete-btn">완료</button>
+          <button type="button" id="editTaskBtn" class="secondary-btn">수정</button>
+          <button type="button" id="deleteTaskBtn" class="danger-btn">삭제</button>
+          <button type="button" id="closeModalBtn" class="secondary-btn">닫기</button>
+          <button type="submit" id="saveTaskBtn" class="primary-btn">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
