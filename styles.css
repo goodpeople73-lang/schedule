@@ -21,6 +21,32 @@ body {
   color: var(--text);
 }
 
+.network-banner {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.network-banner.hidden {
+  display: none;
+}
+
+.network-banner.offline {
+  background: #fee2e2;
+  color: #991b1b;
+  border-bottom: 1px solid #fecaca;
+}
+
+.network-banner.online {
+  background: #dcfce7;
+  color: #166534;
+  border-bottom: 1px solid #bbf7d0;
+}
+
 .container {
   max-width: 980px;
   margin: 0 auto;
@@ -437,7 +463,8 @@ select {
   }
 
   .container,
-  .modal {
+  .modal,
+  .network-banner {
     display: none !important;
   }
 

@@ -5,6 +5,20 @@ const state = {
   dismissedAlertTaskIds: new Set()
 };
 const STORAGE_KEY = "schedule_manager_tasks";
+const firebaseConfig = {
+  apiKey: "AIzaSyCNE_TM5NCewBKot6QKGpX3YFMJ-t_TGCk",
+  authDomain: "schedule-6a2ed.firebaseapp.com",
+  databaseURL: "https://schedule-6a2ed-default-rtdb.firebaseio.com",
+  projectId: "schedule-6a2ed",
+  storageBucket: "schedule-6a2ed.firebasestorage.app",
+  messagingSenderId: "1060530740463",
+  appId: "1:1060530740463:web:ad830980d9bb8c1e388f1a",
+  measurementId: "G-KXJM6CXNLX"
+};
+let firebaseDb = null;
+let isApplyingFirebaseTasks = false;
+let firebaseConnected = true;
+let onlineBannerTimer = null;
 
 const todayLabel = document.getElementById("todayLabel");
 const todayTasks = document.getElementById("todayTasks");
@@ -35,6 +49,7 @@ const searchInput = document.getElementById("searchInput");
 const statusFilter = document.getElementById("statusFilter");
 const alertSection = document.getElementById("alertSection");
 const emojiButtons = document.querySelectorAll(".emoji-btn");
+const networkStatusBanner = document.getElementById("networkStatusBanner");
 
 document.getElementById("addTaskBtn").addEventListener("click", () => openModal());
 document.getElementById("closeModalBtn").addEventListener("click", closeModal);
@@ -98,6 +113,167 @@ function loadTasks() {
 
 function persistTasks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tasks));
+  if (isApplyingFirebaseTasks) {
+    return;
+  }
+  syncTasksToFirebase();
+}
+
+function getImotionFromTitle(title) {
+  const matched = (title || "").match(/\p{Extended_Pictographic}/u);
+  return matched ? matched[0] : "";
+}
+
+function buildFirebaseTaskList(tasks) {
+  return tasks.map((task) => ({
+    title: task.title || "",
+    date: task.date || "",
+    discription: task.detail || "",
+    lank: task.priority || "medium",
+    imotion: getImotionFromTitle(task.title)
+  }));
+}
+
+function initFirebase() {
+  if (!window.firebase) {
+    console.warn("Firebase SDK를 찾을 수 없어 Firebase 동기화를 건너뜁니다.");
+    return;
+  }
+  if (window.firebase.apps && window.firebase.apps.length > 0) {
+    firebaseDb = window.firebase.database();
+    return;
+  }
+  const app = window.firebase.initializeApp(firebaseConfig);
+  firebaseDb = window.firebase.database(app);
+}
+
+function updateNetworkBanner() {
+  if (!networkStatusBanner) {
+    return;
+  }
+  const browserOnline = navigator.onLine;
+  const isOnline = browserOnline && firebaseConnected;
+
+  if (!isOnline) {
+    if (onlineBannerTimer) {
+      clearTimeout(onlineBannerTimer);
+      onlineBannerTimer = null;
+    }
+    networkStatusBanner.textContent = "오프라인 상태입니다. 네트워크 연결을 확인해 주세요.";
+    networkStatusBanner.classList.remove("hidden", "online");
+    networkStatusBanner.classList.add("offline");
+    return;
+  }
+
+  networkStatusBanner.textContent = "온라인 상태로 복구되었습니다.";
+  networkStatusBanner.classList.remove("hidden", "offline");
+  networkStatusBanner.classList.add("online");
+  if (onlineBannerTimer) {
+    clearTimeout(onlineBannerTimer);
+  }
+  onlineBannerTimer = setTimeout(() => {
+    networkStatusBanner.classList.add("hidden");
+  }, 2500);
+}
+
+function watchBrowserNetworkStatus() {
+  window.addEventListener("online", updateNetworkBanner);
+  window.addEventListener("offline", updateNetworkBanner);
+  updateNetworkBanner();
+}
+
+function normalizePriority(priorityValue) {
+  if (priorityValue === "high" || priorityValue === "medium" || priorityValue === "low") {
+    return priorityValue;
+  }
+  return "medium";
+}
+
+function buildTaskFromFirebaseItem(item, index) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const title = typeof item.title === "string" ? item.title.trim() : "";
+  const date = typeof item.date === "string" ? item.date : "";
+  if (!title || !date) {
+    return null;
+  }
+  const detail = typeof item.discription === "string" ? item.discription : "";
+  const imotion = typeof item.imotion === "string" ? item.imotion.trim() : "";
+  const titleWithImotion = imotion && !title.includes(imotion) ? `${imotion} ${title}` : title;
+  const safeDate = date.replaceAll("-", "");
+  const safeTitle = titleWithImotion.replace(/\s+/g, "_").slice(0, 20);
+  return {
+    id: `fb-${index}-${safeDate}-${safeTitle}`,
+    title: titleWithImotion,
+    detail,
+    date,
+    priority: normalizePriority(item.lank),
+    completed: false,
+    completedAt: null
+  };
+}
+
+function mapFirebaseTasks(firebaseTasks) {
+  if (!Array.isArray(firebaseTasks)) {
+    return [];
+  }
+  return firebaseTasks
+    .map((item, index) => buildTaskFromFirebaseItem(item, index))
+    .filter((task) => task && task.id && task.title && task.date);
+}
+
+function applyFirebaseTasks(firebaseTasks) {
+  const mappedTasks = mapFirebaseTasks(firebaseTasks);
+  isApplyingFirebaseTasks = true;
+  state.tasks = mappedTasks;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tasks));
+  isApplyingFirebaseTasks = false;
+}
+
+async function loadTasksFromFirebase() {
+  if (!firebaseDb) {
+    return false;
+  }
+  try {
+    const snapshot = await firebaseDb.ref("tasks").once("value");
+    const firebaseTasks = snapshot.val();
+    if (!Array.isArray(firebaseTasks)) {
+      return false;
+    }
+    applyFirebaseTasks(firebaseTasks);
+    return true;
+  } catch (error) {
+    console.error("Firebase 일정 불러오기 중 오류가 발생했습니다.", error);
+    return false;
+  }
+}
+
+function subscribeToFirebaseTasks() {
+  if (!firebaseDb) {
+    return;
+  }
+  firebaseDb.ref(".info/connected").on("value", (snapshot) => {
+    firebaseConnected = Boolean(snapshot.val());
+    updateNetworkBanner();
+  });
+  firebaseDb.ref("tasks").on("value", (snapshot) => {
+    const firebaseTasks = snapshot.val();
+    applyFirebaseTasks(firebaseTasks);
+    renderAll();
+  }, (error) => {
+    console.error("Firebase 실시간 동기화 중 오류가 발생했습니다.", error);
+  });
+}
+
+function syncTasksToFirebase() {
+  if (!firebaseDb) {
+    return;
+  }
+  const taskList = buildFirebaseTaskList(state.tasks);
+  firebaseDb.ref("tasks").set(taskList).catch((error) => {
+    console.error("Firebase 일정 저장 중 오류가 발생했습니다.", error);
+  });
 }
 
 function sortTasksByStatusAndOrder(tasks) {
@@ -579,7 +755,18 @@ function renderAll() {
   renderPrintMonthContent();
 }
 
-setTodayLabel();
-loadTasks();
-setView("calendar");
-renderAll();
+async function startApp() {
+  setTodayLabel();
+  watchBrowserNetworkStatus();
+  initFirebase();
+  loadTasks();
+  const loadedFromFirebase = await loadTasksFromFirebase();
+  if (!loadedFromFirebase && state.tasks.length > 0) {
+    syncTasksToFirebase();
+  }
+  subscribeToFirebaseTasks();
+  setView("calendar");
+  renderAll();
+}
+
+startApp();
