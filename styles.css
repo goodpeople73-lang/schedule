@@ -414,7 +414,23 @@ select {
   display: none;
 }
 
+.print-calendar-grid .day-cell {
+  min-height: 120px;
+}
+
+.print-task-item {
+  margin-top: 4px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
   body {
     background: #fff;
     color: #000;
@@ -436,14 +452,17 @@ select {
     font-size: 24px;
   }
 
-  .print-month-section ul {
-    margin: 0;
-    padding-left: 20px;
+  .print-calendar-grid {
+    gap: 4px;
   }
 
-  .print-month-section li {
-    margin-bottom: 8px;
-    line-height: 1.4;
+  .print-calendar-grid .day-name,
+  .print-calendar-grid .day-cell {
+    border-radius: 0;
+  }
+
+  .print-calendar-grid .day-cell {
+    min-height: 110px;
   }
 }
 

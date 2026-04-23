@@ -21,7 +21,7 @@ const calendarTitle = document.getElementById("calendarTitle");
 const calendarGrid = document.getElementById("calendarGrid");
 const printMonthBtn = document.getElementById("printMonthBtn");
 const printMonthTitle = document.getElementById("printMonthTitle");
-const printMonthList = document.getElementById("printMonthList");
+const printMonthCalendar = document.getElementById("printMonthCalendar");
 const saveTaskBtn = document.getElementById("saveTaskBtn");
 const deleteTaskBtn = document.getElementById("deleteTaskBtn");
 const editTaskBtn = document.getElementById("editTaskBtn");
@@ -410,30 +410,82 @@ function renderCalendar() {
 function renderPrintMonthContent() {
   const year = state.currentDate.getFullYear();
   const month = state.currentDate.getMonth();
-  const currentMonthTasks = sortTasksByStatusAndOrder(
-    state.tasks.filter((task) => {
-      const taskDate = new Date(task.date);
-      return taskDate.getFullYear() === year && taskDate.getMonth() === month;
-    })
-  );
+  const holidayMap = getHolidayMap(year);
+  const monthTasks = state.tasks.filter((task) => {
+    const taskDate = new Date(task.date);
+    return taskDate.getFullYear() === year && taskDate.getMonth() === month;
+  });
 
   printMonthTitle.textContent = `${year}년 ${month + 1}월 월간 일정표`;
-  printMonthList.innerHTML = "";
+  printMonthCalendar.innerHTML = "";
 
-  if (currentMonthTasks.length === 0) {
-    const empty = document.createElement("li");
-    empty.textContent = "해당 월에 등록된 일정이 없습니다.";
-    printMonthList.appendChild(empty);
-    return;
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  weekdays.forEach((day, dayIndex) => {
+    const dayName = document.createElement("div");
+    dayName.className = "day-name";
+    if (dayIndex === 1) {
+      dayName.classList.add("monday");
+    }
+    dayName.textContent = day;
+    printMonthCalendar.appendChild(dayName);
+  });
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < firstDay; i += 1) {
+    const emptyCell = document.createElement("div");
+    emptyCell.className = "day-cell muted";
+    if (i === 1) {
+      emptyCell.classList.add("monday");
+    }
+    printMonthCalendar.appendChild(emptyCell);
   }
 
-  currentMonthTasks.forEach((task) => {
-    const li = document.createElement("li");
-    const status = task.completed ? "완료" : "미완료";
-    const detailText = task.detail ? ` / ${task.detail}` : "";
-    li.textContent = `${displayDateKorean(task.date)} [${priorityLabel(task.priority)}] ${task.title}${detailText} (${status})`;
-    printMonthList.appendChild(li);
-  });
+  for (let date = 1; date <= daysInMonth; date += 1) {
+    const cell = document.createElement("div");
+    cell.className = "day-cell";
+    const dateValue = formatDate(new Date(year, month, date));
+    const dayOfWeek = new Date(year, month, date).getDay();
+    const holidayName = holidayMap.get(dateValue);
+    if (holidayName) {
+      cell.classList.add("holiday");
+    }
+    if (dayOfWeek === 1) {
+      cell.classList.add("monday");
+    }
+
+    const number = document.createElement("div");
+    number.className = "day-number";
+    number.textContent = String(date);
+    cell.appendChild(number);
+
+    if (holidayName) {
+      const holidayText = document.createElement("div");
+      holidayText.className = "holiday-name";
+      holidayText.textContent = holidayName;
+      cell.appendChild(holidayText);
+    }
+
+    if (dayOfWeek === 1) {
+      const mondayText = document.createElement("div");
+      mondayText.className = "monday-note";
+      mondayText.textContent = "휴관";
+      cell.appendChild(mondayText);
+    }
+
+    const dayTasks = sortTasksByStatusAndOrder(
+      monthTasks.filter((task) => task.date === dateValue)
+    );
+    dayTasks.forEach((task) => {
+      const item = document.createElement("div");
+      item.className = task.completed ? "day-task-dot completed print-task-item" : "day-task-dot print-task-item";
+      item.textContent = `[${priorityLabel(task.priority)}] ${task.title}`;
+      cell.appendChild(item);
+    });
+
+    printMonthCalendar.appendChild(cell);
+  }
 }
 
 function printCurrentMonth() {
